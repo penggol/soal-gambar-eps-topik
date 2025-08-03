@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Gambar</title>
+    <!-- Memuat Tailwind CSS dari CDN untuk styling yang responsif dan modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Memuat font Inter dari Google Fonts untuk tipografi yang bersih -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Memuat JSZip untuk menangani file ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <style>
+        /* Styling dasar untuk body dan container kuis */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8; /* Warna latar belakang terang */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Sejajarkan ke atas untuk memungkinkan scrolling jika konten panjang */
+            min-height: 100vh; /* Tinggi minimum viewport */
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .quiz-container {
+            background-color: #ffffff; /* Latar belakang putih untuk container kuis */
+            border-radius: 12px; /* Sudut membulat */
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1); /* Bayangan lembut */
+            padding: 30px;
+            width: 100%;
+            max-width: 700px; /* Lebar maksimum container */
+            text-align: center; /* Rata tengah semua teks di dalam container */
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Jarak antar elemen */
+        }
+        /* Styling untuk judul kuis saat menampilkan daftar file */
+        #quizTitle.small-title {
+            font-size: 1.5rem; /* Ukuran teks lebih kecil (text-2xl) */
+            margin-bottom: 5px; /* Kurangi margin bawah */
+        }
+        /* Styling untuk daftar nama file yang dimuat */
+        #loadedFilesList p {
+            font-size: 0.9em; /* Ukuran teks kecil untuk daftar file */
+            color: #64748b; /* Warna abu-abu sedang */
+            margin: 2px 0;
+        }
+
+        /* Styling untuk tombol opsi jawaban */
+        .option-button {
+            background-color: #e2e8f0; /* Warna abu-abu terang */
+            color: #334155; /* Teks abu-abu gelap */
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out; /* Transisi halus untuk hover */
+            font-weight: 600;
+            text-align: center; /* Rata tengah teks opsi */
+            border: 2px solid transparent; /* Border transparan default */
+            font-size: 1.1em; /* Ukuran teks opsi sedikit lebih besar */
+        }
+        .option-button:hover {
+            background-color: #cbd5e1; /* Warna abu-abu sedikit lebih gelap saat hover */
+        }
+        /* Styling untuk opsi yang dipilih */
+        .option-button.selected {
+            background-color: #93c5fd; /* biru-300 */
+            color: #1e3a8a; /* biru-900 */
+            border-color: #3b82f6; /* biru-500 */
+        }
+        /* Styling untuk opsi jawaban yang benar (ditampilkan di hasil) */
+        .option-button.correct {
+            background-color: #a7f3d0; /* hijau-200 */
+            color: #065f46; /* hijau-800 */
+            border-color: #34d399; /* hijau-500 */
+        }
+        /* Styling untuk opsi jawaban yang salah (ditampilkan di hasil) */
+        .option-button.incorrect {
+            background-color: #fecaca; /* merah-200 */
+            color: #991b1b; /* merah-800 */
+            border-color: #ef4444; /* merah-500 */
+        }
+        /* Styling untuk gambar pertanyaan */
+        .quiz-image {
+            max-width: 100%;
+            height: auto;
+            max-height: 400px; /* Batasi tinggi gambar lebih besar */
+            object-fit: contain; /* Pastikan gambar pas tanpa terpotong */
+            border-radius: 8px;
+            margin: 0 auto; /* Pusatkan gambar */
+        }
+        /* Styling untuk label input file kustom */
+        .file-input-label {
+            background-color: #3b82f6; /* biru-500 */
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .file-input-label:hover {
+            background-color: #2563eb; /* biru-600 saat hover */
+        }
+        /* Sembunyikan input file asli */
+        input[type="file"] {
+            display: none;
+        }
+        /* Styling untuk tombol navigasi (Selanjutnya, Kirim Kuis, Mulai Ulang) */
+        .action-button {
+            background-color: #10b981; /* hijau-500 */
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 600;
+            border: none;
+            font-size: 1.1em; /* Ukuran teks tombol sedikit lebih besar */
+        }
+        .action-button:hover {
+            background-color: #059669; /* hijau-600 saat hover */
+        }
+        /* Styling khusus untuk tombol Kirim Kuis */
+        .submit-button {
+            background-color: #ef4444; /* merah-500 */
+        }
+        .submit-button:hover {
+            background-color: #dc2626; /* merah-600 saat hover */
+        }
+        /* Styling khusus untuk tombol Mulai Ulang Kuis */
+        .restart-button {
+            background-color: #3b82f6; /* biru-500 */
+        }
+        .restart-button:hover {
+            background-color: #2563eb; /* biru-600 saat hover */
+        }
+        /* Styling untuk bagian hasil kuis */
+        .results-section {
+            text-align: center; /* Rata tengah semua teks di bagian hasil */
+            margin-top: 20px;
+            border-top: 1px solid #e2e8f0; /* Garis pemisah */
+            padding-top: 20px;
+        }
+        /* Styling untuk setiap item hasil pertanyaan */
+        .result-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #f8fafc; /* Latar belakang sangat terang */
+            text-align: center; /* Rata tengah teks di dalam item hasil */
+        }
+        /* Styling khusus untuk item hasil jawaban yang benar */
+        .result-item.correct-answer {
+            background-color: #ecfdf5; /* hijau-50 */
+            border: 1px solid #a7f3d0; /* hijau-200 */
+        }
+        /* Styling khusus untuk item hasil jawaban yang salah */
+        .result-item.incorrect-answer {
+            background-color: #fee2e2; /* merah-50 */
+            border: 1px solid #fecaca; /* merah-200 */
+        }
+        /* Styling untuk progress bar */
+        .progress-bar-container {
+            width: 100%;
+            background-color: #e2e8f0;
+            border-radius: 8px;
+            height: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #3b82f6; /* biru-500 */
+            width: 0%;
+            border-radius: 8px;
+            transition: width 0.3s ease-in-out;
+        }
+        /* Media queries untuk responsivitas pada layar kecil (mobile) */
+        @media (max-width: 640px) {
+            .quiz-container {
+                padding: 15px; /* Sedikit lebih kecil untuk mobile */
+                gap: 10px;
+            }
+            /* Ukuran teks judul untuk mobile */
+            #quizTitle {
+                font-size: 1.5rem; /* text-2xl untuk mobile title */
+            }
+            #quizTitle.small-title {
+                font-size: 1.25rem; /* text-xl untuk small title di mobile */
+            }
+            /* Ukuran teks pertanyaan untuk mobile */
+            #questionText {
+                font-size: 1.25rem; /* text-xl */
+            }
+            /* Ukuran teks opsi dan tombol untuk mobile */
+            .option-button, .action-button {
+                padding: 10px 15px;
+                font-size: 1em; /* Memastikan tidak mengecil, tetap proporsional */
+            }
+            /* Ukuran teks status file */
+            #fileStatus {
+                font-size: 0.875rem; /* text-sm */
+            }
+            /* Ukuran teks pada bagian impor dan rentang soal */
+            #importOptionsText, .range-selection-section p {
+                font-size: 1.125rem; /* text-lg */
+            }
+            /* Ukuran teks skor dan hasil detail */
+            #scoreText, .result-item p {
+                font-size: 1.125rem; /* text-lg */
+            }
+            .result-item .font-semibold { /* Pertanyaan di hasil */
+                font-size: 1.125rem; /* text-lg */
+            }
+            /* Ukuran gambar untuk mobile */
+            .quiz-image {
+                max-height: 300px; /* Batasi tinggi gambar sedikit lebih kecil di mobile agar tidak terlalu dominan */
+            }
+        }
+        /* Styling untuk tombol scroll ke bawah */
+        #scrollToBottomButton {
+            position: fixed; /* Mengubah dari sticky menjadi fixed */
+            bottom: 20px; /* Jarak dari bawah */
+            right: 20px; /* Jarak dari kanan */
+            background-color: #3b82f6; /* Warna biru */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 600;
+            border: none;
+            font-size: 1em;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Bayangan untuk menonjolkan tombol */
+            z-index: 1000; /* Pastikan tombol di atas elemen lain */
+            display: none; /* Sembunyikan secara default */
+            /* margin-top dihapus karena position: fixed */
+        }
+        #scrollToBottomButton:hover {
+            background-color: #2563eb; /* Biru lebih gelap saat hover */
+        }
+
+        /* Styling baru untuk daftar paket soal */
+        .quiz-package-item {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-align: left;
+            display: flex;
+            flex-direction: column; /* Ubah ke kolom untuk menampung konten gambar */
+            align-items: flex-start;
+        }
+        .quiz-package-item:hover {
+            background-color: #e2e8f0;
+        }
+        .quiz-package-item.completed {
+            background-color: rgba(167, 243, 208, 0.5); /* hijau-200 dengan transparansi */
+            border-color: #34d399;
+        }
+        .quiz-package-item .header {
+            display: flex;
+            justify-content: space-between; /* Pushes content to ends */
+            align-items: center;
+            width: 100%;
+            margin-bottom: 10px; /* Jarak antara header dan konten gambar */
+        }
+        .quiz-package-item .header > span:first-child { /* The package name */
+            flex-grow: 1;
+            text-align: left; /* Ensure text aligns left within its flex item */
+            padding-right: 10px; /* Add some padding to prevent overlap with right group */
+            font-size: 1rem; /* Ukuran font sedikit lebih kecil */
+            overflow: hidden; /* Sembunyikan teks yang meluap */
+            text-overflow: ellipsis; /* Tambahkan elipsis untuk teks yang meluap */
+            white-space: nowrap; /* Cegah teks membungkus */
+        }
+        .quiz-package-item .header .right-group { /* New class for the div grouping progress and button */
+            display: flex;
+            align-items: center;
+            flex-shrink: 0; /* Prevent shrinking */
+            gap: 10px; /* Space between progress info and button */
+        }
+        .quiz-package-item .progress-info {
+            font-size: 0.85em; /* Ukuran font lebih kecil untuk info progres */
+            color: #64748b;
+        }
+        .quiz-package-item .toggle-content-button {
+            background-color: #3b82f6;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: 600;
+            border: none;
+            font-size: 0.85em; /* Ukuran font lebih kecil untuk tombol */
+            white-space: nowrap; /* Pastikan teks tombol tidak membungkus */
+        }
+        .quiz-package-item .toggle-content-button:hover {
+            background-color: #2563eb;
+        }
+        .quiz-package-item .image-content {
+            display: none; /* Sembunyikan secara default */
+            width: 100%;
+            margin-top: 0; /* Jarak sudah diatur oleh margin-bottom header */
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+        }
+        .quiz-package-item .image-content.visible {
+            display: flex; /* Tampilkan saat aktif */
+            flex-wrap: wrap; /* Memungkinkan gambar untuk membungkus */
+            justify-content: center; /* Pusatkan gambar */
+            gap: 10px; /* Jarak antar gambar */
+        }
+        .quiz-package-item .image-content img {
+            width: 80px; /* Ukuran kecil untuk thumbnail */
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Container utama aplikasi kuis -->
+    <div id="quizApp" class="quiz-container">
+        <!-- Judul kuis, akan diperbarui dengan nama file JSON -->
+        <h1 id="quizTitle" class="text-3xl font-bold text-gray-800 mb-4">Kuis Gambar</h1>
+        <!-- Daftar nama file yang dimuat (disembunyikan secara default) -->
+        <div id="loadedFilesList" class="mb-4 hidden"></div>
+
+        <!-- Bagian unggah file JSON -->
+        <div id="fileUploadSection" class="flex flex-col items-center gap-4">
+            <p class="text-gray-600">Silakan unggah file kuis JSON Anda.</p>
+            <label for="jsonFileInput" class="file-input-label">Pilih File JSON/ZIP</label>
+            <input type="file" id="jsonFileInput" accept=".json,.zip" multiple>
+            <!-- Status file, disembunyikan secara default -->
+            <div id="fileStatus" class="text-sm text-gray-500 mt-2 hidden"></div>
+            <button id="showQuizPackagesButton" class="action-button bg-blue-500 hover:bg-blue-600 hidden">Lihat Paket Soal</button>
+            <div class="flex gap-4 mt-4">
+                <label for="importProgressInput" class="file-input-label bg-gray-500 hover:bg-gray-600">Impor Progres</label>
+                <input type="file" id="importProgressInput" accept=".json">
+                <button id="exportProgressButton" class="action-button bg-gray-500 hover:bg-gray-600">Ekspor Progres</button>
+                <button id="resetProgressButton" class="action-button bg-red-500 hover:bg-red-600">Reset Progres</button>
+            </div>
+        </div>
+
+        <!-- Bagian daftar paket soal -->
+        <div id="quizPackagesSection" class="hidden">
+            <!-- Judul "Daftar Paket Soal" akan diatur oleh quizTitleElement -->
+            <p id="quizSummaryText" class="text-md text-gray-600 mb-4"></p>
+            <div id="quizPackagesList" class="flex flex-col gap-3 mb-6">
+                <!-- Daftar paket soal akan dimuat di sini -->
+            </div>
+            <button id="backToUploadButton" class="action-button bg-gray-500 hover:bg-gray-600">Kembali</button>
+        </div>
+
+        <!-- Bagian opsi impor (Tambahkan/Ganti) -->
+        <div id="importOptionsSection" class="hidden flex flex-col items-center gap-4">
+            <p id="importOptionsText" class="text-gray-700 text-lg">File JSON berhasil dimuat. Apa yang ingin Anda lakukan?</p>
+            <div class="flex gap-4">
+                <button id="addQuestionsButton" class="action-button bg-blue-500 hover:bg-blue-600">Tambahkan Soal</button>
+                <button id="replaceQuestionsButton" class="action-button bg-red-500 hover:bg-red-600">Ganti Soal</button>
+            </div>
+        </div>
+
+        <!-- Bagian pemilihan rentang soal -->
+        <div id="rangeSelectionSection" class="hidden flex flex-col items-center gap-4">
+            <p class="text-gray-700 text-lg">Pilih rentang soal yang ingin dikerjakan:</p>
+            <div class="flex flex-col sm:flex-row gap-4 w-full justify-center items-center">
+                <div class="flex items-center gap-2">
+                    <label for="startQuestion" class="text-gray-600">Mulai dari:</label>
+                    <input type="number" id="startQuestion" min="1" value="1" class="w-20 p-2 border border-gray-300 rounded-md text-center">
+                </div>
+                <div class="flex items-center gap-2">
+                    <label for="endQuestion" class="text-gray-600">Sampai dengan:</label>
+                    <input type="number" id="endQuestion" min="1" class="w-20 p-2 border border-gray-300 rounded-md text-center">
+                </div>
+            </div>
+            <button id="startQuizButton" class="action-button mt-4">Mulai Kuis</button>
+            <button id="backToPackagesButton" class="action-button bg-gray-500 hover:bg-gray-600">Kembali ke Paket Soal</button>
+        </div>
+
+        <!-- Bagian kuis (disembunyikan secara default) -->
+        <div id="quizSection" class="hidden">
+            <!-- Progress Bar -->
+            <div class="progress-bar-container">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+            <p id="progressText" class="text-sm text-gray-500 mb-4"></p>
+
+            <div class="mb-6">
+                <!-- Gambar pertanyaan -->
+                <img id="questionImage" class="quiz-image mb-4" src="" alt="Gambar Pertanyaan">
+                <!-- Teks pertanyaan -->
+                <p id="questionText" class="text-xl font-semibold text-gray-700 mb-6"></p>
+            </div>
+
+            <!-- Container untuk opsi jawaban (akan diisi secara dinamis) -->
+            <div id="optionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <!-- Opsi akan dimasukkan di sini secara dinamis -->
+            </div>
+
+            <!-- Tombol navigasi kuis -->
+            <div class="flex justify-between gap-4">
+                <button id="nextButton" class="action-button flex-1">Selanjutnya</button>
+                <button id="submitButton" class="action-button submit-button flex-1 hidden">Kirim Kuis</button>
+            </div>
+        </div>
+
+        <!-- Bagian hasil kuis (disembunyikan secara default) -->
+        <div id="resultsSection" class="hidden results-section">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Hasil Kuis</h2>
+            <!-- Teks skor -->
+            <p id="scoreText" class="text-xl font-semibold text-gray-700 mb-6"></p>
+            <!-- Tombol ulangi kuis dipindahkan ke atas -->
+            <div class="flex flex-col sm:flex-row gap-4 mt-6 mb-6"> <!-- Tambah mb-6 untuk jarak dengan hasil detail -->
+                <button id="repeatWrongButton" class="action-button bg-yellow-500 hover:bg-yellow-600 flex-1">Ulangi Kata yang Salah</button>
+                <button id="repeatAllButton" class="action-button bg-purple-500 hover:bg-purple-600 flex-1">Ulangi Semua Kata</button>
+            </div>
+            <!-- Hasil detail per pertanyaan -->
+            <div id="detailedResults" class="flex flex-col gap-4">
+                <!-- Hasil detail akan dimasukkan di sini -->
+            </div>
+            <!-- Tombol gulir ke bawah -->
+            <button id="scrollToBottomButton" class="action-button">Gulir ke Bawah</button>
+            <button id="returnToPackagesButton" class="action-button bg-gray-500 hover:bg-gray-600 mt-4">Kembali ke Paket Soal</button>
+        </div>
+    </div>
+
+    <script>
+        // Mendapatkan referensi ke elemen-elemen DOM
+        const quizTitleElement = document.getElementById('quizTitle');
+        const loadedFilesList = document.getElementById('loadedFilesList'); // Elemen untuk daftar file, sekarang selalu tersembunyi
+        const fileUploadSection = document.getElementById('fileUploadSection');
+        const jsonFileInput = document.getElementById('jsonFileInput');
+        const fileStatus = document.getElementById('fileStatus'); // Elemen untuk status file
+        const showQuizPackagesButton = document.getElementById('showQuizPackagesButton'); // Tombol baru
+        const importProgressInput = document.getElementById('importProgressInput'); // Input impor progres
+        const exportProgressButton = document.getElementById('exportProgressButton'); // Tombol ekspor progres
+        const resetProgressButton = document.getElementById('resetProgressButton'); // Tombol reset progres
+
+        const quizPackagesSection = document.getElementById('quizPackagesSection'); // Bagian daftar paket soal
+        const quizSummaryText = document.getElementById('quizSummaryText'); // Elemen untuk ringkasan kuis
+        const quizPackagesList = document.getElementById('quizPackagesList'); // Daftar paket soal
+        const backToUploadButton = document.getElementById('backToUploadButton'); // Tombol kembali
+
+        const importOptionsSection = document.getElementById('importOptionsSection');
+        const importOptionsText = document.getElementById('importOptionsText');
+        const addQuestionsButton = document.getElementById('addQuestionsButton');
+        const replaceQuestionsButton = document.getElementById('replaceQuestionsButton');
+
+        const rangeSelectionSection = document.getElementById('rangeSelectionSection');
+        const startQuestionInput = document.getElementById('startQuestion');
+        const endQuestionInput = document.getElementById('endQuestion');
+        const startQuizButton = document.getElementById('startQuizButton');
+        const backToPackagesButton = document.getElementById('backToPackagesButton'); // Tombol kembali ke paket soal
+
+        const quizSection = document.getElementById('quizSection');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const questionImage = document.getElementById('questionImage');
+        const questionText = document.getElementById('questionText');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const nextButton = document.getElementById('nextButton');
+        const submitButton = document.getElementById('submitButton');
+
+        const resultsSection = document.getElementById('resultsSection');
+        const scoreText = document.getElementById('scoreText');
+        const detailedResults = document.getElementById('detailedResults');
+        const repeatWrongButton = document.getElementById('repeatWrongButton');
+        const repeatAllButton = document.getElementById('repeatAllButton');
+        const scrollToBottomButton = document.getElementById('scrollToBottomButton'); // Tombol baru
+        const returnToPackagesButton = document.getElementById('returnToPackagesButton'); // Tombol kembali ke paket soal dari hasil
+
+        // Variabel untuk menyimpan status kuis
+        let allQuizPackages = {}; // Menyimpan semua paket soal yang diimpor, { fileName: [{question data}], ... }
+        let currentQuizPackageName = null; // Nama paket soal yang sedang dikerjakan
+        let originalQuizData = []; // Data kuis asli dari paket yang dipilih
+        let quizData = []; // Data kuis yang sedang dikerjakan (bisa difilter berdasarkan rentang atau jawaban salah)
+        let currentQuestionIndex = 0; // Indeks pertanyaan saat ini dalam quizData
+        let userAnswers = {}; // Menyimpan jawaban pengguna per paket soal: { packageName: { originalQuestionIndex: { selectedOption: string, isCorrect: boolean } } }
+        let feedbackMode = false; // Status untuk mengontrol tampilan umpan balik
+
+        const LOCAL_STORAGE_PROGRESS_KEY = 'quizProgress'; // Kunci untuk penyimpanan progres di Local Storage
+
+        /**
+         * Mengacak elemen dalam array menggunakan algoritma Fisher-Yates (Knuth).
+         * @param {Array} array Array yang akan diacak.
+         * @returns {Array} Array yang sudah diacak.
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]]; // Tukar elemen
+            }
+            return array;
+        }
+
+        /**
+         * Menghasilkan set opsi jawaban yang salah dari jawaban benar pertanyaan lain.
+         * @param {string} correctAnswer Jawaban yang benar untuk pertanyaan saat ini.
+         * @param {Array} allQuizData Seluruh data kuis.
+         * @param {number} currentQIndex Indeks pertanyaan saat ini.
+         * @param {number} count Jumlah opsi salah yang akan dihasilkan.
+         * @returns {string[]} Array opsi salah.
+         */
+        function generateIncorrectOptions(correctAnswer, allQuizData, currentQIndex, count) {
+            const incorrectOptions = new Set();
+            const otherAnswers = allQuizData
+                .filter((_, index) => index !== currentQIndex)
+                .map(q => q.answer);
+
+            const shuffledOtherAnswers = shuffleArray([...otherAnswers]);
+
+            for (let i = 0; i < shuffledOtherAnswers.length && incorrectOptions.size < count; i++) {
+                const option = shuffledOtherAnswers[i];
+                if (option !== correctAnswer) {
+                    incorrectOptions.add(option);
+                }
+            }
+
+            while (incorrectOptions.size < count) {
+                const randomChar = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+                const randomNumber = Math.floor(Math.random() * 100);
+                const genericOption = `Opsi Salah ${randomChar}${randomNumber}`;
+                if (genericOption !== correctAnswer && !incorrectOptions.has(genericOption)) {
+                    incorrectOptions.add(genericOption);
+                }
+            }
+            return Array.from(incorrectOptions).slice(0, count);
+        }
+
+        /**
+         * Mengelola visibilitas bagian-bagian aplikasi.
+         * @param {string} sectionId ID dari bagian yang akan ditampilkan.
+         */
+        function showSection(sectionId) {
+            // Sembunyikan semua bagian
+            fileUploadSection.classList.add('hidden');
+            quizPackagesSection.classList.add('hidden');
+            importOptionsSection.classList.add('hidden');
+            rangeSelectionSection.classList.add('hidden');
+            quizSection.classList.add('hidden');
+            resultsSection.classList.add('hidden');
+            scrollToBottomButton.classList.add('hidden'); // Sembunyikan tombol gulir secara default
+            loadedFilesList.classList.add('hidden'); // Selalu sembunyikan daftar file yang dimuat
+
+            // Kontrol visibilitas judul utama dan teksnya
+            quizTitleElement.classList.remove('hidden'); // Selalu tampilkan judul utama
+            quizTitleElement.classList.remove('small-title'); // Reset ukuran judul
+
+            if (sectionId === 'fileUploadSection') {
+                quizTitleElement.textContent = "Kuis Gambar";
+            } else if (sectionId === 'quizPackagesSection') {
+                quizTitleElement.textContent = "Daftar Paket Soal"; // Set judul untuk bagian ini
+            } else if (sectionId === 'rangeSelectionSection') {
+                quizTitleElement.textContent = `Paket: ${currentQuizPackageName}`;
+            } else { // quizSection atau resultsSection
+                quizTitleElement.classList.add('hidden'); // Sembunyikan judul saat di kuis atau hasil
+            }
+
+            // Sembunyikan fileStatus saat beralih bagian
+            fileStatus.classList.add('hidden');
+            fileStatus.textContent = ''; // Bersihkan teks status
+
+            // Tampilkan bagian yang diminta
+            document.getElementById(sectionId).classList.remove('hidden');
+
+            // Tampilkan tombol gulir ke bawah hanya di bagian hasil kuis
+            if (sectionId === 'resultsSection') {
+                scrollToBottomButton.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Memuat progres dari Local Storage.
+         */
+        function loadProgress() {
+            const savedProgress = localStorage.getItem(LOCAL_STORAGE_PROGRESS_KEY);
+            if (savedProgress) {
+                try {
+                    const parsedProgress = JSON.parse(savedProgress);
+                    // Pastikan struktur progres yang dimuat sesuai
+                    if (parsedProgress && typeof parsedProgress === 'object') {
+                        userAnswers = parsedProgress;
+                        console.log('Progres berhasil dimuat dari Local Storage.');
+                        updateQuizPackagesList(); // Perbarui tampilan daftar paket setelah memuat progres
+                    }
+                } catch (e) {
+                    console.error('Gagal memuat progres dari Local Storage:', e);
+                    userAnswers = {}; // Reset jika ada error
+                }
+            } else {
+                userAnswers = {}; // Inisialisasi jika tidak ada progres tersimpan
+            }
+        }
+
+        /**
+         * Menyimpan progres ke Local Storage.
+         */
+        function saveProgress() {
+            try {
+                localStorage.setItem(LOCAL_STORAGE_PROGRESS_KEY, JSON.stringify(userAnswers));
+                console.log('Progres berhasil disimpan ke Local Storage.');
+            } catch (e) {
+                console.error('Gagal menyimpan progres ke Local Storage:', e);
+            }
+        }
+
+        /**
+         * Memperbarui daftar paket soal yang tersedia.
+         */
+        function updateQuizPackagesList() {
+            quizPackagesList.innerHTML = ''; // Bersihkan daftar sebelumnya
+            const packageNames = Object.keys(allQuizPackages).sort(); // Urutkan nama paket secara abjad
+
+            let totalOverallQuestions = 0;
+            let totalCompletedQuestions = 0;
+            let completedPackagesCount = 0;
+
+            if (packageNames.length === 0) {
+                quizPackagesList.innerHTML = '<p class="text-gray-500">Belum ada paket soal yang diimpor.</p>';
+                quizSummaryText.textContent = `Total Paket: 0 | Paket Selesai: 0 | Total Soal: 0 | Soal Dikerjakan: 0`;
+                return;
+            }
+
+            packageNames.forEach((packageName, index) => {
+                const packageData = allQuizPackages[packageName];
+                const packageProgress = userAnswers[packageName] || {};
+                const totalQuestions = packageData.length;
+                const answeredQuestions = Object.keys(packageProgress).length;
+                const correctAnswersCount = Object.values(packageProgress).filter(ans => ans.isCorrect).length;
+
+                totalOverallQuestions += totalQuestions;
+                totalCompletedQuestions += answeredQuestions;
+
+                if (answeredQuestions === totalQuestions && totalQuestions > 0) {
+                    completedPackagesCount++;
+                }
+
+                const packageItem = document.createElement('div');
+                packageItem.classList.add('quiz-package-item');
+                packageItem.setAttribute('data-package-name', packageName);
+
+                let progressText = `(${answeredQuestions}/${totalQuestions}`;
+                if (answeredQuestions > 0) {
+                    progressText += `, ${correctAnswersCount} benar)`;
+                } else {
+                    progressText += ')';
+                }
+
+                packageItem.innerHTML = `
+                    <div class="header">
+                        <span class="flex-grow text-left">${index + 1}. ${packageName}</span>
+                        <div class="right-group">
+                            <span class="progress-info">${progressText}</span>
+                            <button class="toggle-content-button" data-package-name="${packageName}">Lihat Isi</button>
+                        </div>
+                    </div>
+                    <div class="image-content" id="imageContent-${packageName}">
+                        <!-- Gambar akan dimuat di sini -->
+                    </div>
+                `;
+
+                // Cek apakah semua soal di paket ini sudah dikerjakan
+                if (answeredQuestions === totalQuestions && totalQuestions > 0) {
+                    packageItem.classList.add('completed');
+                }
+
+                // Event listener untuk memilih paket (klik di luar tombol toggle)
+                packageItem.querySelector('.header').addEventListener('click', (event) => {
+                    // Pastikan klik bukan pada tombol toggle
+                    if (!event.target.classList.contains('toggle-content-button')) {
+                        selectQuizPackage(packageName);
+                    }
+                });
+
+                // Event listener untuk tombol toggle
+                packageItem.querySelector('.toggle-content-button').addEventListener('click', (event) => {
+                    const targetButton = event.target;
+                    const contentDiv = document.getElementById(`imageContent-${packageName}`);
+                    if (contentDiv.classList.contains('visible')) {
+                        contentDiv.classList.remove('visible');
+                        targetButton.textContent = 'Lihat Isi';
+                    } else {
+                        // Muat gambar hanya jika belum dimuat
+                        if (contentDiv.children.length === 0) {
+                            packageData.slice(0, 10).forEach(q => { // Tampilkan maksimal 10 gambar untuk pratinjau
+                                const img = document.createElement('img');
+                                img.src = q.image;
+                                img.alt = q.question.substring(0, 20) + '...'; // Alt text singkat
+                                contentDiv.appendChild(img);
+                            });
+                            if (packageData.length > 10) {
+                                const moreText = document.createElement('span');
+                                moreText.textContent = `...dan ${packageData.length - 10} lainnya.`;
+                                moreText.classList.add('text-gray-500', 'text-sm', 'w-full', 'mt-2');
+                                contentDiv.appendChild(moreText);
+                            }
+                        }
+                        contentDiv.classList.add('visible');
+                        targetButton.textContent = 'Sembunyikan Isi';
+                    }
+                });
+
+                quizPackagesList.appendChild(packageItem);
+            });
+
+            // Update ringkasan di bagian atas
+            quizSummaryText.textContent = `Total Paket: ${packageNames.length} | Paket Selesai: ${completedPackagesCount} | Total Soal: ${totalOverallQuestions} | Soal Dikerjakan: ${totalCompletedQuestions}`;
+        }
+
+        /**
+         * Memilih paket soal untuk dikerjakan.
+         * @param {string} packageName Nama paket soal yang dipilih.
+         */
+        function selectQuizPackage(packageName) {
+            currentQuizPackageName = packageName;
+            originalQuizData = allQuizPackages[packageName];
+            setupRangeSelection();
+        }
+
+        /**
+         * Memulai kuis dengan set pertanyaan yang sudah ditentukan.
+         * Pertanyaan akan selalu diacak di sini.
+         * @param {Array} questionsToUse Array pertanyaan untuk kuis saat ini.
+         */
+        function startQuiz(questionsToUse) {
+            quizData = shuffleArray([...questionsToUse]); // Selalu acak urutan soal
+            currentQuestionIndex = 0;
+            // Inisialisasi userAnswers untuk paket ini jika belum ada
+            if (!userAnswers[currentQuizPackageName]) {
+                userAnswers[currentQuizPackageName] = {};
+            }
+            showSection('quizSection');
+            displayQuestion();
+        }
+
+        /**
+         * Menampilkan pertanyaan saat ini, gambarnya, dan opsi yang sudah diacak.
+         */
+        function displayQuestion() {
+            // Jika semua pertanyaan sudah ditampilkan, kirim kuis
+            if (currentQuestionIndex >= quizData.length) {
+                submitQuiz();
+                return;
+            }
+
+            // Hapus semua kelas feedback dari opsi sebelumnya
+            optionsContainer.querySelectorAll('.option-button').forEach(btn => {
+                btn.classList.remove('selected', 'correct', 'incorrect');
+                btn.disabled = false; // Pastikan tombol aktif
+            });
+            feedbackMode = false; // Reset mode feedback
+            nextButton.textContent = 'Selanjutnya'; // Reset teks tombol
+
+            const question = quizData[currentQuestionIndex];
+            questionImage.src = question.image; // Set sumber gambar
+            questionText.textContent = question.question; // Set teks pertanyaan
+
+            // Perbarui progress bar
+            const progressPercentage = (currentQuestionIndex / quizData.length) * 100;
+            progressBar.style.width = `${progressPercentage}%`;
+            progressText.textContent = `Pertanyaan ${currentQuestionIndex + 1} dari ${quizData.length}`;
+
+            // Siapkan opsi jawaban
+            const correctOption = question.answer;
+            // Hasilkan 3 opsi salah dari jawaban pertanyaan lain
+            const incorrectOptions = generateIncorrectOptions(correctOption, originalQuizData, originalQuizData.indexOf(question), 3);
+            let allOptions = [correctOption, ...incorrectOptions];
+            allOptions = shuffleArray(allOptions); // Acak semua opsi
+
+            optionsContainer.innerHTML = ''; // Bersihkan opsi sebelumnya
+            optionsContainer.setAttribute('data-selected-option', ''); // Bersihkan status opsi yang dipilih
+
+            // Buat tombol untuk setiap opsi
+            allOptions.forEach(option => {
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.classList.add('option-button', 'w-full'); // Tambahkan w-full untuk lebar penuh
+                button.setAttribute('data-option', option); // Simpan teks opsi
+                button.addEventListener('click', () => selectOption(button, option));
+                optionsContainer.appendChild(button);
+            });
+
+            // Jika ada jawaban tersimpan untuk pertanyaan ini, tampilkan
+            const originalQuestionIndex = originalQuizData.indexOf(question);
+            const savedAnswer = userAnswers[currentQuizPackageName]?.[originalQuestionIndex];
+            if (savedAnswer) {
+                const selectedButton = optionsContainer.querySelector(`[data-option="${savedAnswer.selectedOption}"]`);
+                if (selectedButton) {
+                    selectOption(selectedButton, savedAnswer.selectedOption, true); // True untuk menandakan ini adalah pemulihan progres
+                }
+            }
+
+
+            // Perbarui visibilitas tombol navigasi
+            nextButton.classList.remove('hidden');
+            submitButton.classList.add('hidden');
+            // Jika ini pertanyaan terakhir, tampilkan tombol 'Kirim Kuis'
+            if (currentQuestionIndex === quizData.length - 1) {
+                nextButton.classList.add('hidden');
+                submitButton.classList.remove('hidden');
+            }
+        }
+
+        /**
+         * Menangani pemilihan opsi, menyoroti opsi yang dipilih, dan menyimpannya.
+         * @param {HTMLElement} selectedButton Elemen tombol yang diklik.
+         * @param {string} selectedOptionText Teks konten dari opsi yang dipilih.
+         * @param {boolean} isRestoringProgress Menunjukkan apakah fungsi dipanggil saat memulihkan progres.
+         */
+        function selectOption(selectedButton, selectedOptionText, isRestoringProgress = false) {
+            if (feedbackMode && !isRestoringProgress) return; // Jangan izinkan klik jika sedang dalam mode feedback dan bukan pemulihan progres
+
+            // Hapus kelas 'selected' dari semua opsi
+            optionsContainer.querySelectorAll('.option-button').forEach(btn => {
+                btn.classList.remove('selected');
+                btn.disabled = true; // Nonaktifkan semua tombol setelah pilihan dibuat
+            });
+
+            // Tambahkan kelas 'selected' ke tombol yang diklik
+            selectedButton.classList.add('selected');
+            optionsContainer.setAttribute('data-selected-option', selectedOptionText);
+
+            // Simpan jawaban pengguna
+            const question = quizData[currentQuestionIndex];
+            const originalQuestionIndex = originalQuizData.indexOf(question);
+            const isCorrect = selectedOptionText === question.answer;
+
+            userAnswers[currentQuizPackageName][originalQuestionIndex] = {
+                selectedOption: selectedOptionText,
+                isCorrect: isCorrect
+            };
+            saveProgress(); // Simpan progres setiap kali jawaban dipilih
+
+            // Tampilkan umpan balik visual hanya jika bukan pemulihan progres
+            if (!isRestoringProgress) {
+                const correctAnswer = question.answer;
+                const correctButton = optionsContainer.querySelector(`[data-option="${correctAnswer}"]`);
+
+                if (isCorrect) {
+                    selectedButton.classList.add('correct');
+                } else {
+                    selectedButton.classList.add('incorrect');
+                    if (correctButton) {
+                        correctButton.classList.add('correct'); // Sorot jawaban yang benar jika yang dipilih salah
+                    }
+                }
+                feedbackMode = true; // Aktifkan mode feedback
+                nextButton.textContent = 'Lanjut'; // Ubah teks tombol untuk melanjutkan
+            } else {
+                // Jika memulihkan progres, langsung aktifkan tombol selanjutnya jika sudah ada jawaban
+                feedbackMode = true; // Tetapkan feedbackMode ke true agar bisa langsung lanjut
+                nextButton.textContent = 'Lanjut';
+            }
+        }
+
+        /**
+         * Pindah ke pertanyaan berikutnya.
+         */
+        function nextQuestion() {
+            if (!feedbackMode) { // Jika belum dalam mode feedback, berarti belum memilih jawaban
+                alert('Pilih salah satu opsi sebelum melanjutkan!');
+                return;
+            }
+
+            currentQuestionIndex++;
+            displayQuestion();
+        }
+
+        /**
+         * Menghitung dan menampilkan hasil kuis.
+         */
+        function submitQuiz() {
+            let score = 0;
+            detailedResults.innerHTML = ''; // Bersihkan hasil sebelumnya
+
+            const incorrectAnswers = [];
+            const correctAnswers = [];
+
+            // Ambil jawaban untuk paket yang sedang dikerjakan
+            const currentPackageAnswers = userAnswers[currentQuizPackageName] || {};
+
+            // Iterasi melalui originalQuizData untuk memastikan semua pertanyaan tercakup dalam hasil
+            originalQuizData.forEach((question, originalIndex) => {
+                const userAns = currentPackageAnswers[originalIndex];
+                const isAnswered = userAns !== undefined;
+                const isCorrect = isAnswered ? userAns.isCorrect : false;
+
+                if (isCorrect) {
+                    score++;
+                }
+
+                const resultItem = document.createElement('div');
+                resultItem.classList.add('result-item', isCorrect ? 'correct-answer' : 'incorrect-answer');
+
+                resultItem.innerHTML = `
+                    <img src="${question.image}" alt="Gambar Pertanyaan ${originalIndex + 1}" class="quiz-image mb-2">
+                    <p><strong>Pertanyaan:</strong> ${question.question}</p>
+                    <p><strong>Jawaban Anda:</strong> ${isAnswered ? userAns.selectedOption : 'Belum dijawab'}</p>
+                    <p><strong>Jawaban Benar:</strong> ${question.answer}</p>
+                    ${isAnswered && !isCorrect ? `<p class="text-red-700">Anda menjawab salah.</p>` : ''}
+                    ${isAnswered && isCorrect ? `<p class="text-emerald-700">Anda menjawab benar!</p>` : ''}
+                    ${!isAnswered ? `<p class="text-gray-700">Pertanyaan ini belum dijawab.</p>` : ''}
+                `;
+
+                if (!isCorrect) {
+                    incorrectAnswers.push(resultItem);
+                } else {
+                    correctAnswers.push(resultItem);
+                }
+            });
+
+            // Tambahkan jawaban salah terlebih dahulu
+            incorrectAnswers.forEach(item => detailedResults.appendChild(item));
+            // Kemudian tambahkan jawaban benar
+            correctAnswers.forEach(item => detailedResults.appendChild(item));
+
+
+            scoreText.textContent = `Skor Anda: ${score} dari ${originalQuizData.length}`; // Skor berdasarkan total soal asli
+
+            showSection('resultsSection');
+            updateQuizPackagesList(); // Perbarui daftar paket soal setelah kuis selesai
+        }
+
+        /**
+         * Mengatur ulang kuis ke keadaan awal, memungkinkan file baru dimuat.
+         */
+        function restartQuiz() {
+            allQuizPackages = {};
+            currentQuizPackageName = null;
+            originalQuizData = [];
+            quizData = [];
+            currentQuestionIndex = 0;
+            userAnswers = {}; // Reset semua progres
+            localStorage.removeItem(LOCAL_STORAGE_PROGRESS_KEY); // Hapus progres dari Local Storage
+            jsonFileInput.value = ''; // Hapus input file yang dipilih sebelumnya
+            fileStatus.textContent = ''; // Bersihkan status file
+            fileStatus.classList.add('hidden'); // Sembunyikan status file
+            feedbackMode = false; // Reset feedback mode
+
+            showSection('fileUploadSection');
+            showQuizPackagesButton.classList.add('hidden'); // Sembunyikan tombol "Lihat Paket Soal"
+            updateQuizPackagesList(); // Perbarui daftar paket soal (kosong)
+        }
+
+        /**
+         * Mengulangi kuis hanya untuk pertanyaan yang dijawab salah.
+         * Pertanyaan akan diacak.
+         */
+        function repeatWrongAnswers() {
+            const wrongQuestions = [];
+            const currentPackageAnswers = userAnswers[currentQuizPackageName] || {};
+            // Kumpulkan pertanyaan yang dijawab salah dari originalQuizData
+            originalQuizData.forEach((question, originalIndex) => {
+                const userAns = currentPackageAnswers[originalIndex];
+                if (userAns && !userAns.isCorrect) {
+                    wrongQuestions.push(question);
+                }
+            });
+
+            if (wrongQuestions.length === 0) {
+                alert('Tidak ada jawaban salah untuk diulang!');
+                return;
+            }
+            startQuiz(wrongQuestions); // Memanggil startQuiz akan mengacaknya
+        }
+
+        /**
+         * Mengulangi kuis untuk semua pertanyaan asli.
+         * Pertanyaan akan diacak.
+         */
+        function repeatAllAnswers() {
+            startQuiz(originalQuizData); // Memanggil startQuiz akan mengacaknya
+        }
+
+        /**
+         * Menggulir halaman ke bagian bawah.
+         */
+        function scrollToBottom() {
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth' // Gulir dengan animasi halus
+            });
+        }
+
+        // Event Listeners
+        jsonFileInput.addEventListener('change', async (event) => {
+            const files = event.target.files;
+            if (files.length === 0) {
+                fileStatus.textContent = '';
+                fileStatus.classList.add('hidden'); // Sembunyikan status file jika tidak ada file
+                showQuizPackagesButton.classList.add('hidden');
+                return;
+            }
+
+            let tempNewPackages = {}; // Menyimpan data dari file JSON yang baru diimpor sementara
+            let loadedFileNames = [];
+            let failedFileNames = [];
+
+            const processFile = async (file) => {
+                if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
+                    try {
+                        const zip = await JSZip.loadAsync(file);
+                        const jsonFilesPromises = [];
+                        zip.forEach((relativePath, zipEntry) => {
+                            if (!zipEntry.dir && relativePath.toLowerCase().endsWith('.json')) {
+                                jsonFilesPromises.push(zipEntry.async("text").then(content => {
+                                    try {
+                                        const parsedData = JSON.parse(content);
+                                        if (!Array.isArray(parsedData) || parsedData.some(q => !q.image || !q.question || !q.answer)) {
+                                            throw new Error('Format JSON tidak valid.');
+                                        }
+                                        const packageName = relativePath.replace(/\.json$/, '').split('/').pop(); // Gunakan nama file sebagai nama paket
+                                        tempNewPackages[packageName] = parsedData;
+                                        loadedFileNames.push(relativePath);
+                                    } catch (error) {
+                                        failedFileNames.push(`${relativePath} (${error.message})`);
+                                    }
+                                }));
+                            }
+                        });
+                        await Promise.all(jsonFilesPromises);
+                    } catch (error) {
+                        failedFileNames.push(`${file.name} (Gagal membaca file ZIP: ${error.message})`);
+                    }
+                } else if (file.type === 'application/json' || file.name.endsWith('.json')) {
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            try {
+                                const parsedData = JSON.parse(e.target.result);
+                                if (!Array.isArray(parsedData) || parsedData.some(q => !q.image || !q.question || !q.answer)) {
+                                    throw new Error('Format JSON tidak valid.');
+                                }
+                                const packageName = file.name.replace(/\.json$/, ''); // Gunakan nama file sebagai nama paket
+                                tempNewPackages[packageName] = parsedData;
+                                loadedFileNames.push(file.name);
+                                resolve();
+                            } catch (error) {
+                                failedFileNames.push(`${file.name} (${error.message})`);
+                                resolve();
+                            }
+                        };
+                        reader.onerror = () => {
+                            failedFileNames.push(`${file.name} (Gagal membaca file)`);
+                            resolve();
+                        };
+                        reader.readAsText(file);
+                    });
+                } else {
+                    failedFileNames.push(`${file.name} (Jenis file tidak didukung)`);
+                }
+            };
+
+            const fileProcessingPromises = Array.from(files).map(processFile);
+            await Promise.all(fileProcessingPromises);
+
+
+            let statusMessage = '';
+            if (loadedFileNames.length > 0) {
+                statusMessage += `Berhasil memuat: ${loadedFileNames.join(', ')}. `;
+                // Gabungkan paket baru dengan yang sudah ada
+                Object.assign(allQuizPackages, tempNewPackages);
+                showQuizPackagesButton.classList.remove('hidden'); // Tampilkan tombol "Lihat Paket Soal"
+                updateQuizPackagesList(); // Perbarui daftar paket soal
+            }
+            if (failedFileNames.length > 0) {
+                statusMessage += `Gagal memuat: ${failedFileNames.join(', ')}.`;
+                alert(`Beberapa file gagal dimuat:\n${failedFileNames.join('\n')}`);
+            }
+            fileStatus.textContent = statusMessage;
+            if (statusMessage) { // Tampilkan status hanya jika ada pesan
+                fileStatus.classList.remove('hidden');
+                // Sembunyikan pesan status setelah beberapa detik
+                setTimeout(() => {
+                    fileStatus.classList.add('hidden');
+                    fileStatus.textContent = '';
+                }, 5000); // Sembunyikan setelah 5 detik
+            } else {
+                fileStatus.classList.add('hidden');
+            }
+
+
+            if (Object.keys(tempNewPackages).length === 0 && Object.keys(allQuizPackages).length === 0) {
+                alert('Tidak ada soal yang berhasil dimuat dari file yang dipilih. Silakan coba lagi dengan file yang valid.');
+                restartQuiz();
+            } else if (Object.keys(tempNewPackages).length > 0) {
+                // Setelah memuat file, langsung tampilkan daftar paket soal
+                showSection('quizPackagesSection');
+            }
+        });
+
+        showQuizPackagesButton.addEventListener('click', () => {
+            showSection('quizPackagesSection');
+            updateQuizPackagesList();
+        });
+
+        backToUploadButton.addEventListener('click', () => {
+            showSection('fileUploadSection');
+        });
+
+        backToPackagesButton.addEventListener('click', () => {
+            showSection('quizPackagesSection');
+            updateQuizPackagesList(); // Pastikan daftar paket diperbarui saat kembali
+        });
+
+        returnToPackagesButton.addEventListener('click', () => {
+            showSection('quizPackagesSection');
+            updateQuizPackagesList(); // Pastikan daftar paket diperbarui saat kembali dari hasil
+        });
+
+        // Event listener untuk tombol Reset Progres
+        resetProgressButton.addEventListener('click', () => {
+            if (confirm('Apakah Anda yakin ingin mereset semua progres kuis? Tindakan ini tidak dapat dibatalkan.')) {
+                restartQuiz(); // Fungsi restartQuiz sudah menangani reset semua status dan local storage
+                alert('Semua progres kuis telah direset.');
+            }
+        });
+
+        /**
+         * Menyiapkan bagian pemilihan rentang soal.
+         */
+        function setupRangeSelection() {
+            if (originalQuizData.length === 0) {
+                alert('Tidak ada soal yang dimuat. Silakan unggah file JSON atau pilih paket soal.');
+                showSection('fileUploadSection');
+                return;
+            }
+            startQuestionInput.value = 1;
+            endQuestionInput.value = originalQuizData.length;
+            endQuestionInput.max = originalQuizData.length; // Set max value for end input
+            showSection('rangeSelectionSection');
+        }
+
+        startQuizButton.addEventListener('click', () => {
+            const startQ = parseInt(startQuestionInput.value);
+            const endQ = parseInt(endQuestionInput.value);
+
+            if (isNaN(startQ) || isNaN(endQ) || startQ < 1 || endQ > originalQuizData.length || startQ > endQ) {
+                alert(`Rentang soal tidak valid. Masukkan angka antara 1 dan ${originalQuizData.length}, dan pastikan 'Mulai dari' tidak lebih besar dari 'Sampai dengan'.`);
+                return;
+            }
+
+            const selectedQuestions = originalQuizData.slice(startQ - 1, endQ);
+            if (selectedQuestions.length === 0) {
+                alert('Tidak ada soal dalam rentang yang dipilih. Silakan sesuaikan rentang.');
+                return;
+            }
+            // Pastikan ada cukup pertanyaan untuk menghasilkan opsi salah dari jawaban lain
+            if (selectedQuestions.length < 4 && originalQuizData.length >= 4) { // Cek originalQuizData untuk ketersediaan opsi salah
+                console.warn('Jumlah pertanyaan dalam rentang kurang dari 4. Opsi jawaban salah mungkin tidak unik dan akan menggunakan placeholder generik.');
+            }
+            startQuiz(selectedQuestions); // Panggil startQuiz, yang akan mengacak soal
+        });
+
+        nextButton.addEventListener('click', nextQuestion);
+        submitButton.addEventListener('click', submitQuiz);
+        repeatWrongButton.addEventListener('click', repeatWrongAnswers);
+        repeatAllButton.addEventListener('click', repeatAllAnswers);
+        scrollToBottomButton.addEventListener('click', scrollToBottom); // Event listener untuk tombol baru
+
+        // Fitur Ekspor Progres
+        exportProgressButton.addEventListener('click', () => {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+            const day = String(now.getDate()).padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+            const fileName = `kuis_progress_${dateString}.json`; // New filename with date
+
+            const progressData = JSON.stringify(userAnswers, null, 2);
+            const blob = new Blob([progressData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName; // Use the new filename
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert(`Progres kuis berhasil diekspor sebagai ${fileName}!`);
+        });
+
+        // Fitur Impor Progres
+        importProgressInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const importedProgress = JSON.parse(e.target.result);
+                    if (importedProgress && typeof importedProgress === 'object') {
+                        // Gabungkan progres yang diimpor dengan progres yang sudah ada
+                        Object.assign(userAnswers, importedProgress);
+                        saveProgress(); // Simpan kembali ke Local Storage
+                        alert('Progres berhasil diimpor!');
+                        updateQuizPackagesList(); // Perbarui tampilan daftar paket
+                    } else {
+                        alert('Format file progres tidak valid.');
+                    }
+                } catch (error) {
+                    alert('Gagal membaca file progres. Pastikan itu adalah file JSON yang valid.');
+                    console.error('Error importing progress:', error);
+                }
+                // Reset input file agar event change bisa dipicu lagi jika file yang sama dipilih
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        });
+
+
+        // Pengaturan awal saat halaman dimuat
+        loadProgress(); // Muat progres saat aplikasi dimulai
+        showSection('fileUploadSection'); // Pastikan bagian unggah file terlihat di awal
+        updateQuizPackagesList(); // Perbarui daftar paket soal saat startup
+    </script>
+</body>
+</html>
